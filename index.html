@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>二位數加減法-適應性計算練習電子書</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap');
+
+    body {
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* 高對比模式切換 */
+    body.high-contrast {
+      background-color: #000000 !important;
+      color: #ffff00 !important;
+    }
+    body.high-contrast .hc-card {
+      background-color: #1a1a1a !important;
+      border-color: #ffff00 !important;
+      color: #ffff00 !important;
+    }
+    body.high-contrast .hc-btn {
+      background-color: #333333 !important;
+      color: #ffffff !important;
+      border-color: #ffff00 !important;
+    }
+    body.high-contrast .hc-btn-op {
+      background-color: #0055ff !important;
+      color: #ffffff !important;
+    }
+    body.high-contrast .hc-btn-eq {
+      background-color: #00aa00 !important;
+      color: #ffffff !important;
+    }
+    body.high-contrast .hc-display {
+      background-color: #000000 !important;
+      color: #00ff00 !important;
+      border-color: #00ff00 !important;
+    }
+
+    /* 按鈕按壓超大回饋 */
+    .btn-key {
+      transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s;
+      box-shadow: 0 6px 0 rgba(0, 0, 0, 0.2);
+    }
+    .btn-key:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+    }
+
+    /* 全螢幕碎紙畫布 */
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 99999;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 transition-colors duration-200">
+<body class="bg-slate-100 min-h-screen text-slate-800 transition-colors duration-200 flex flex-col justify-between">
+
+  <!-- 頂部工具列 (輔具與協助設定) -->
+  <header class="bg-white border-b-2 border-slate-200 sticky top-0 z-30 px-3 py-2 shadow-sm hc-card">
+    <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">♿</span>
+        <div>
+          <h1 class="text-lg md:text-xl font-black text-blue-700 tracking-wide hc-card">二位數加減法按鍵計算練習</h1>
+          <p class="text-xs text-slate-500 font-bold hc-card">適應性輔助介面：逐題練習與點擊按鍵計算</p>
+        </div>
+      </div>
+
+      <!-- 控制選單按鈕區 -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <button id="ttsToggleBtn" onclick="toggleTTS()" class="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-xl border-2 border-emerald-300 flex items-center gap-1.5 text-sm md:text-base hc-btn">
+          <span id="ttsIcon">🔊</span> <span id="ttsText">語音：開啟</span>
+        </button>
+
+        <button onclick="toggleHighContrast()" class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold rounded-xl border-2 border-amber-300 flex items-center gap-1.5 text-sm md:text-base hc-btn">
+          👁️ 高對比切換
+        </button>
+
+        <button onclick="speakQuestion()" class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-xl border-2 border-blue-300 flex items-center gap-1.5 text-sm md:text-base hc-btn">
+          📢 重讀題目
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <canvas id="confettiCanvas"></canvas>
+
+  <main class="max-w-6xl mx-auto p-2 md:p-4 w-full flex-1 flex flex-col justify-center">
+    
+    <section class="bg-white rounded-2xl p-2.5 shadow-md mb-3 border-2 border-slate-200 hc-card">
+      <div class="flex flex-row justify-between items-center gap-2">
+        
+        <div class="flex items-center gap-2">
+          <button onclick="prevQuestion()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 font-black rounded-xl text-sm md:text-base border-2 border-slate-300 hc-btn">
+            ⬅️ 上一題
+          </button>
+          
+          <div class="text-center">
+            <select id="qSelect" onchange="jumpToQuestion(this.value)" class="bg-slate-100 border-2 border-slate-300 rounded-xl px-2 py-1 text-sm md:text-base font-black text-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 hc-card">
+              <!-- 由 JS 動態生成 15 題選項 -->
+            </select>
+          </div>
+
+          <button onclick="nextQuestion()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 font-black rounded-xl text-sm md:text-base border-2 border-slate-300 hc-btn">
+            下一題 ➡️
+          </button>
+        </div>
+
+        <!-- 答題紀錄累積 -->
+        <div class="flex items-center gap-2 text-sm md:text-base font-bold">
+          <span>完成進度：</span>
+          <span id="progressText" class="text-lg md:text-xl font-black text-emerald-600">0 / 15</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 平板雙欄版面（左手慣用優化）：左邊學生按鍵輸入顯示幕與鍵盤，右邊題目與提示 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+      
+      <!-- 左側：學生按鍵輸入顯示幕與適應性超大按鈕區 -->
+      <section class="bg-white rounded-2xl p-3 md:p-4 shadow-lg border-4 border-emerald-200 flex flex-col justify-start gap-2 hc-card">
+        
+        <!-- 輸入算式螢幕顯示區 (Student Input Display) -->
+        <div class="mb-1">
+          <div class="flex justify-between items-center mb-1 px-1">
+            <span class="text-sm font-black text-emerald-700">🖥️ 學生按鍵輸入顯示幕：</span>
+            <span class="text-xs font-bold text-slate-400">即時按鍵顯示</span>
+          </div>
+          <div id="calcDisplay" class="bg-slate-900 text-emerald-400 font-mono text-2xl md:text-4xl font-black p-2 rounded-xl border-4 border-slate-700 text-right min-h-[58px] flex items-center justify-end overflow-x-auto tracking-widest hc-display shadow-inner">
+            <span id="calcDisplayText" class="whitespace-nowrap"></span>
+            <span class="animate-pulse text-emerald-500">|</span>
+          </div>
+        </div>
+
+        <!-- 輔具鍵盤：超大獨立按鈕 (High Touch Targets) -->
+        <div class="grid grid-cols-4 gap-2 md:gap-2.5">
+          
+          <!-- 第一排： 7, 8, 9, 減號 -->
+          <button onclick="pressKey('7')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">7</button>
+          <button onclick="pressKey('8')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">8</button>
+          <button onclick="pressKey('9')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">9</button>
+          <button onclick="pressKey('-')" class="btn-key h-14 md:h-16 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-amber-600 hc-btn-op">－</button>
+
+          <!-- 第二排： 4, 5, 6, 加號 -->
+          <button onclick="pressKey('4')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">4</button>
+          <button onclick="pressKey('5')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">5</button>
+          <button onclick="pressKey('6')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">6</button>
+          <button onclick="pressKey('+')" class="btn-key h-14 md:h-16 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-amber-600 hc-btn-op">＋</button>
+
+          <!-- 第三排： 1, 2, 3, 刪除 -->
+          <button onclick="pressKey('1')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">1</button>
+          <button onclick="pressKey('2')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">2</button>
+          <button onclick="pressKey('3')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">3</button>
+          <button onclick="pressKey('BACKSPACE')" class="btn-key h-14 md:h-16 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-black text-base md:text-lg rounded-xl border-2 border-rose-600 hc-btn">⌫ 刪除</button>
+
+          <!-- 第四排： 清除, 0, 檢查答案 -->
+          <button onclick="pressKey('CLEAR')" class="btn-key h-14 md:h-16 bg-slate-500 hover:bg-slate-600 active:bg-slate-700 text-white font-black text-base md:text-lg rounded-xl border-2 border-slate-600 hc-btn">清除</button>
+          <button onclick="pressKey('0')" class="btn-key h-14 md:h-16 bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-black text-2xl md:text-3xl rounded-xl border-2 border-sky-600 hc-btn">0</button>
+          <button onclick="pressKey('=')" class="btn-key col-span-2 h-14 md:h-16 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black text-xl md:text-2xl rounded-xl border-2 border-emerald-700 hc-btn-eq flex items-center justify-center gap-1">
+            ＝ 顯示答案
+          </button>
+
+        </div>
+      </section>
+
+      <!-- 右側：題目呈現、直式位值對照與提示訊息 -->
+      <section class="bg-white rounded-2xl p-3 md:p-4 shadow-lg border-4 border-blue-200 flex flex-col justify-between hc-card">
+        <div>
+          <!-- 題目卡片標題 -->
+          <div class="flex justify-between items-center border-b-2 border-slate-200 pb-2 mb-2">
+            <span id="qBadge" class="bg-blue-600 text-white font-black text-base px-3 py-1 rounded-full">第 1 題</span>
+            <span id="qStatus" class="text-xs md:text-sm font-bold text-slate-400"></span>
+          </div>
+
+          <!-- 題目超大字體顯示 -->
+          <div class="text-center my-2">
+            <div id="qPromptText" class="text-3xl md:text-4xl font-black text-blue-900 tracking-wider my-1">
+              53 － 33 ＝ ？
+            </div>
+          </div>
+
+          <!-- 直式對齊輔助框 (協助理解位值) -->
+          <div class="bg-slate-50 rounded-xl p-2.5 border-2 border-slate-200 my-2 hc-card">
+            <table class="w-full text-center text-xl md:text-2xl font-black border-collapse">
+              <thead>
+                <tr class="text-xs font-bold text-slate-400 border-b-2 border-slate-200">
+                  <th class="py-0.5"></th>
+                  <th class="py-0.5">十位</th>
+                  <th class="py-0.5">個位</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="w-10 text-slate-400"></td>
+                  <td id="vN1Tens" class="py-0.5 text-slate-800">3</td>
+                  <td id="vN1Ones" class="py-0.5 text-slate-800">3</td>
+                </tr>
+                <tr>
+                  <td id="vOp" class="w-10 text-blue-600 font-black">＋</td>
+                  <td id="vN2Tens" class="py-0.5 text-slate-800">5</td>
+                  <td id="vN2Ones" class="py-0.5 text-slate-800">3</td>
+                </tr>
+                <tr class="border-t-2 border-slate-800">
+                  <td class="w-10 text-blue-600 font-black">＝</td>
+                  <td id="vAnsTens" class="py-1 text-emerald-600 font-black">?</td>
+                  <td id="vAnsOnes" class="py-1 text-emerald-600 font-black">?</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 右側題目填答專用數字鍵盤 (0~9 按鈕區) -->
+          <div class="mt-2 p-2.5 bg-blue-50/80 rounded-xl border-2 border-blue-200 hc-card">
+            <div class="text-center font-bold text-blue-900 text-xs md:text-sm mb-1.5">【點選下方數字按鈕填入答案】</div>
+            <div class="grid grid-cols-5 gap-1.5 mb-1.5">
+              <button onclick="pressRightNum('1')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">1</button>
+              <button onclick="pressRightNum('2')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">2</button>
+              <button onclick="pressRightNum('3')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">3</button>
+              <button onclick="pressRightNum('4')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">4</button>
+              <button onclick="pressRightNum('5')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">5</button>
+              <button onclick="pressRightNum('6')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">6</button>
+              <button onclick="pressRightNum('7')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">7</button>
+              <button onclick="pressRightNum('8')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">8</button>
+              <button onclick="pressRightNum('9')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">9</button>
+              <button onclick="pressRightNum('0')" class="btn-key h-10 md:h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-black text-lg md:text-xl rounded-lg border-2 border-indigo-700 hc-btn">0</button>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button onclick="pressRightAction('BACKSPACE')" class="btn-key h-10 bg-rose-500 hover:bg-rose-600 text-white font-black text-base rounded-lg border-2 border-rose-600 hc-btn">⌫ 刪除</button>
+              <button onclick="verifyRightAnswer()" class="btn-key h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-base rounded-lg border-2 border-emerald-700 hc-btn-eq">✓ 確認送出</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- 完成所有練習總結賞識 Modal -->
+  <div id="completionModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-lg w-full text-center border-4 border-yellow-400 shadow-2xl hc-card">
+      <div class="text-6xl mb-4 animate-bounce">🏆🎉🌟</div>
+      <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-2">太棒了，完全答對</h2>
+      <p class="text-xl text-slate-600 font-bold mb-6">你成功計算並輸入了所有的二位數加減法答案</p>
+      <div class="bg-amber-100 text-amber-900 font-black text-2xl p-4 rounded-2xl border-2 border-amber-300 mb-6">
+        總得分：100 分 ✨
+      </div>
+      <button onclick="restartPractice()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black text-2xl rounded-2xl shadow-lg border-2 border-blue-700">
+        再練習一遍 🔄
+      </button>
+    </div>
+  </div>
+
+  <!-- 答錯顯眼跳出畫面 (Wrong Answer Overlay Modal) -->
+  <div id="wrongModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4" onclick="closeWrongModal()">
+    <div class="bg-white rounded-3xl p-8 max-w-md w-full text-center border-4 border-rose-500 shadow-2xl hc-card transform transition-all animate-bounce" onclick="event.stopPropagation()">
+      <div class="text-7xl mb-3">😅 ❌</div>
+      <h2 class="text-3xl md:text-4xl font-black text-rose-600 mb-2">做錯了要再試試看喔</h2>
+      <p class="text-lg md:text-xl text-slate-700 font-bold mb-6">別擔心，馬上為你清空算式，請重新按按鈕試一次</p>
+      <button onclick="closeWrongModal()" class="w-full py-4 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-black text-2xl rounded-2xl shadow-lg border-2 border-rose-700">
+        再試一次 💪
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // 15 題二位數加減法題目資料庫（來自最新練習單）
+    const questionsData = [
+      { id: 1, num1: 33, num2: 53, op: '+', ans: 86 },
+      { id: 2, num1: 13, num2: 44, op: '+', ans: 57 },
+      { id: 3, num1: 32, num2: 43, op: '+', ans: 75 },
+      { id: 4, num1: 14, num2: 82, op: '+', ans: 96 },
+      { id: 5, num1: 18, num2: 41, op: '+', ans: 59 },
+      { id: 6, num1: 85, num2: 11, op: '+', ans: 96 },
+      { id: 7, num1: 52, num2: 26, op: '+', ans: 78 },
+      { id: 8, num1: 10, num2: 68, op: '+', ans: 78 },
+      { id: 9, num1: 39, num2: 19, op: '-', ans: 20 },
+      { id: 10, num1: 85, num2: 22, op: '-', ans: 63 },
+      { id: 11, num1: 87, num2: 31, op: '-', ans: 56 },
+      { id: 12, num1: 82, num2: 22, op: '-', ans: 60 },
+      { id: 13, num1: 62, num2: 50, op: '-', ans: 12 },
+      { id: 14, num1: 89, num2: 42, op: '-', ans: 47 },
+      { id: 15, num1: 86, num2: 34, op: '-', ans: 52 }
+    ];
+
+    let currentQIndex = 0;
+    let inputSequence = "";
+    let rightInput = "";
+    let isTTSEnabled = true;
+    let completedQuestions = new Set();
+    let isEvaluating = false;
+    let wrongTimer = null;
+
+    function calculateExpression(expr) {
+      if (!expr) return "";
+      // 移除末尾可能的運算子號（如 53- 轉為 53）
+      const cleaned = expr.replace(/[+-]+$/, '');
+      if (!cleaned) return "";
+
+      const tokens = cleaned.match(/(\d+|[+-])/g);
+      if (!tokens) return expr;
+
+      let result = 0;
+      let currentOp = '+';
+
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (token === '+' || token === '-') {
+          currentOp = token;
+        } else {
+          const num = parseInt(token, 10);
+          if (!isNaN(num)) {
+            if (currentOp === '+') result += num;
+            else if (currentOp === '-') result -= num;
+          }
+        }
+      }
+      return result.toString();
+    }
+
+    function playTone(type) {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+
+        if (type === 'key') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(450, ctx.currentTime);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.08);
+        } else if (type === 'correct') {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.09);
+            gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.09);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.09 + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + idx * 0.09);
+            osc.stop(ctx.currentTime + idx * 0.09 + 0.25);
+          });
+        } else if (type === 'wrong') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(140, ctx.currentTime + 0.22);
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.22);
+        }
+      } catch (e) {}
+    }
+
+    function pressKey(char) {
+      if (isEvaluating) return;
+      playTone('key');
+
+      if (char === 'CLEAR') {
+        inputSequence = "";
+        speakText("清空輸入");
+      } else if (char === 'BACKSPACE') {
+        if (inputSequence.length > 0) {
+          inputSequence = inputSequence.slice(0, -1);
+          speakText("刪除");
+        }
+      } else if (char === '=') {
+        if (!inputSequence) return;
+        // 根據學生輸入算式真實計算，非直接給正確答案
+        const calculatedRes = calculateExpression(inputSequence);
+        if (calculatedRes !== "") {
+          inputSequence = calculatedRes;
+          updateDisplay();
+          speakText(`等於 ${calculatedRes}`);
+        }
+        return;
+      } else {
+        inputSequence += char;
+        speakChar(char);
+      }
+
+      updateDisplay();
+    }
+
+    function pressRightNum(num) {
+      if (isEvaluating) return;
+      playTone('key');
+      rightInput += num;
+      speakChar(num);
+      updateRightDisplay();
+    }
+
+    function pressRightAction(action) {
+      if (isEvaluating) return;
+      playTone('key');
+      if (action === 'BACKSPACE') {
+        if (rightInput.length > 0) {
+          rightInput = rightInput.slice(0, -1);
+          speakText("刪除");
+        }
+      }
+      updateRightDisplay();
+    }
+
+    function verifyRightAnswer() {
+      if (isEvaluating) return;
+      const q = questionsData[currentQIndex];
+
+      if (!rightInput) {
+        speakText("請輸入答案");
+        return;
+      }
+
+      const studentVal = parseInt(rightInput, 10);
+
+      if (studentVal === q.ans) {
+        isEvaluating = true;
+        playTone('correct');
+        completedQuestions.add(q.id);
+
+        speakText(`太棒了，答對了`);
+        
+        document.getElementById('qStatus').textContent = "本題已答對完成";
+        updateProgress();
+        triggerConfetti(0.4);
+
+        setTimeout(() => {
+          isEvaluating = false;
+          if (completedQuestions.size === questionsData.length) {
+            showCompletionModal();
+          } else if (currentQIndex < questionsData.length - 1) {
+            nextQuestion();
+          } else {
+            const nextUnfinished = questionsData.findIndex(item => !completedQuestions.has(item.id));
+            if (nextUnfinished !== -1) {
+              loadQuestion(nextUnfinished);
+            } else {
+              showCompletionModal();
+            }
+          }
+        }, 1800);
+
+      } else {
+        isEvaluating = true;
+        playTone('wrong');
+        showWrongModal();
+      }
+    }
+
+    function showWrongModal() {
+      const modal = document.getElementById('wrongModal');
+      modal.classList.remove('hidden');
+      speakText("做錯了要再試試看喔");
+
+      if (wrongTimer) clearTimeout(wrongTimer);
+      wrongTimer = setTimeout(() => {
+        closeWrongModal();
+      }, 2000);
+    }
+
+    function closeWrongModal() {
+      if (wrongTimer) {
+        clearTimeout(wrongTimer);
+        wrongTimer = null;
+      }
+      const modal = document.getElementById('wrongModal');
+      modal.classList.add('hidden');
+
+      rightInput = "";
+      updateRightDisplay();
+      isEvaluating = false;
+    }
+
+    function loadQuestion(index) {
+      currentQIndex = index;
+      const q = questionsData[index];
+      inputSequence = "";
+      rightInput = "";
+
+      document.getElementById('qSelect').value = index;
+      document.getElementById('qBadge').textContent = `第 ${q.id} 題 / 共 15 題`;
+      
+      const n1Tens = Math.floor(q.num1 / 10);
+      const n1Ones = q.num1 % 10;
+      const n2Tens = Math.floor(q.num2 / 10);
+      const n2Ones = q.num2 % 10;
+
+      document.getElementById('vN1Tens').textContent = n1Tens;
+      document.getElementById('vN1Ones').textContent = n1Ones;
+      document.getElementById('vOp').textContent = q.op === '+' ? '＋' : '－';
+      document.getElementById('vN2Tens').textContent = n2Tens;
+      document.getElementById('vN2Ones').textContent = n2Ones;
+
+      if (completedQuestions.has(q.id)) {
+        document.getElementById('qStatus').textContent = "本題已答對完成";
+      } else {
+        document.getElementById('qStatus').textContent = "";
+      }
+
+      updateDisplay();
+      updateRightDisplay();
+      speakQuestion();
+    }
+
+    function updateRightDisplay() {
+      const q = questionsData[currentQIndex];
+      const qPromptText = document.getElementById('qPromptText');
+      const opSign = q.op === '+' ? '＋' : '－';
+
+      if (completedQuestions.has(q.id)) {
+        qPromptText.textContent = `${q.num1} ${opSign} ${q.num2} ＝ ${q.ans}`;
+        document.getElementById('vAnsTens').textContent = Math.floor(q.ans / 10);
+        document.getElementById('vAnsOnes').textContent = q.ans % 10;
+      } else {
+        if (rightInput !== "") {
+          qPromptText.textContent = `${q.num1} ${opSign} ${q.num2} ＝ ${rightInput}`;
+          const val = parseInt(rightInput, 10);
+          if (!isNaN(val)) {
+            document.getElementById('vAnsTens').textContent = Math.floor(val / 10);
+            document.getElementById('vAnsOnes').textContent = val % 10;
+          } else {
+            document.getElementById('vAnsTens').textContent = "?";
+            document.getElementById('vAnsOnes').textContent = "?";
+          }
+        } else {
+          qPromptText.textContent = `${q.num1} ${opSign} ${q.num2} ＝ ？`;
+          document.getElementById('vAnsTens').textContent = "?";
+          document.getElementById('vAnsOnes').textContent = "?";
+        }
+      }
+    }
+
+    function updateDisplay() {
+      const displayText = document.getElementById('calcDisplayText');
+      displayText.textContent = inputSequence;
+    }
+
+    function speakText(text) {
+      if (!isTTSEnabled) return;
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'zh-TW';
+        msg.rate = 0.95;
+        window.speechSynthesis.speak(msg);
+      }
+    }
+
+    function speakChar(c) {
+      if (c === '-') speakText("減");
+      else if (c === '+') speakText("加");
+      else speakText(c);
+    }
+
+    function speakQuestion() {
+      const q = questionsData[currentQIndex];
+      const opText = q.op === '+' ? '加' : '減';
+      speakText(`第 ${q.id} 題，${q.num1} ${opText} ${q.num2} 等於多少？`);
+    }
+
+    function toggleTTS() {
+      isTTSEnabled = !isTTSEnabled;
+      const btnText = document.getElementById('ttsText');
+      const btnIcon = document.getElementById('ttsIcon');
+      if (isTTSEnabled) {
+        btnText.textContent = "語音：開啟";
+        btnIcon.textContent = "🔊";
+        speakText("語音朗讀已開啟");
+      } else {
+        btnText.textContent = "語音：關閉";
+        btnIcon.textContent = "🔇";
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      }
+    }
+
+    function toggleHighContrast() {
+      document.body.classList.toggle('high-contrast');
+    }
+
+    function initDropdown() {
+      const select = document.getElementById('qSelect');
+      select.innerHTML = '';
+      questionsData.forEach((q, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        const opSign = q.op === '+' ? '＋' : '－';
+        opt.textContent = `第 ${q.id} 題 (${q.num1} ${opSign} ${q.num2})`;
+        select.appendChild(opt);
+      });
+    }
+
+    function jumpToQuestion(idx) {
+      loadQuestion(parseInt(idx, 10));
+    }
+
+    function prevQuestion() {
+      if (currentQIndex > 0) {
+        loadQuestion(currentQIndex - 1);
+      } else {
+        speakText("這是第一題喔");
+      }
+    }
+
+    function nextQuestion() {
+      if (currentQIndex < questionsData.length - 1) {
+        loadQuestion(currentQIndex + 1);
+      } else {
+        speakText("這是最後一題了");
+      }
+    }
+
+    function updateProgress() {
+      document.getElementById('progressText').textContent = `${completedQuestions.size} / ${questionsData.length}`;
+    }
+
+    function showCompletionModal() {
+      playTone('correct');
+      triggerConfetti(3.0);
+      speakText("恭喜你，全部十五題二位數減法練習都完成了，你太厲害了");
+      document.getElementById('completionModal').classList.remove('hidden');
+    }
+
+    function restartPractice() {
+      completedQuestions.clear();
+      updateProgress();
+      document.getElementById('completionModal').classList.add('hidden');
+      loadQuestion(0);
+    }
+
+    function triggerConfetti(durationSec) {
+      const canvas = document.getElementById('confettiCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+
+      for (let i = 0; i < 100; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2 - 40,
+          vx: (Math.random() - 0.5) * 16,
+          vy: (Math.random() - 0.7) * 14,
+          size: Math.random() * 9 + 6,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rSpeed: (Math.random() - 0.5) * 10
+        });
+      }
+
+      let startTime = Date.now();
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let elapsed = (Date.now() - startTime) / 1000;
+
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.35;
+          p.rotation += p.rSpeed;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          ctx.restore();
+        });
+
+        if (elapsed < durationSec) {
+          requestAnimationFrame(render);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      requestAnimationFrame(render);
+    }
+
+    window.addEventListener('load', () => {
+      initDropdown();
+      loadQuestion(0);
+    });
+  </script>
+</body>
+</html>
